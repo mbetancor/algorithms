@@ -16,58 +16,27 @@ filter_vector v1 vectorlist  =  maximum [ dotproduct x v1 | x <- vectorlist]
 -- Returns the max dotprod between two lists, using filter_vector
 filter_dotprod :: [[Int]] -> Int
 filter_dotprod [x] = 0
-filter_dotprod (x:xs) = maximum (filter_vector x xs:[filter_dotprod xs])
-
+filter_dotprod (x:xs) = maximum $ filter_vector x xs:[filter_dotprod xs]
 
 -- A particular permutation, because it only takes combinations of length=limit
 perm :: [Int] -> Int -> [[Int]]
 perm [] _ = [[]]
 perm _ 0 = [[]]
-perm xs limit = unique [sort(x:ys) | x <- xs, ys <- perm (delete x xs) (limit-1)]
+perm xs limit = unique [(x:ys) | x <- xs, ys <- perm (delete x xs) (limit-1)]
 
 -- Returns the same function without duplicates
 unique :: [[Int]] -> [[Int]]
 unique []       = []
 unique (x : xs) = x : unique (filter (x /=) xs)
 
-
 -- This is some kind of dotproduct
 dotproduct :: [Int] -> [Int] -> Int
-dotproduct list1 list2 = length(list1 `intersect` list2)
-
-remove_lists :: [[Int]] -> [[Int]] -> [[Int]]
-remove_lists list [] = list
-remove_lists [] list = []
-remove_lists lists (x:xs) = remove_lists (remove_list lists x ) xs
-
--- Removes a list from a list of lists
-remove_list :: [[Int]] -> [Int] -> [[Int]]
-remove_list [] _ = []
-remove_list (x:xs) element 
-			| x==element = remove_list xs element
-			| otherwise = x:(remove_list xs element) 
-
--- Removes an element from a list
-remove :: [Int] -> Int -> [Int]
-remove [] _ = []
-remove (x:xs) element 
-			| x==element = remove xs element
-			| otherwise = x:(remove xs element) 
+dotproduct list1 list2 = length (list1 `intersect` list2)
 
 
--- INCOMPLETE! We need the random package 
-first_solution :: Int -> Int -> Int -> [[Int]]
-first_solution rows columns r =  shuffle_m (perm [1..columns] r) (length(perm [1..columns] r) `div` rows)
-
--- Alternative to random. Fix it if possible..
-shuffle_m :: [[Int]] -> Int -> [[Int]]
-shuffle_m list partitions = 
-		let positions = (takeWhile (<length(list)) [n*partitions| n<-[0..]])
-		in [ list !! n | n <- positions]
--- Pseudo Fix, tomorrow I will add the random stuff
-shuffle_m2 :: [[Int]] -> [Int] -> [[Int]]
-shuffle_m2 list partitions = 
-		 [ list !! n | n <- partitions]
+delete_lists :: [[Int]] -> [[Int]] -> [[Int]]
+delete_lists [] _ = []
+delete_lists (x:xs) big_list = delete_lists xs (delete x big_list)
 
 -- This can be extended to all the posibilities
 get_first_answer :: Int -> Int -> Int -> Int
@@ -77,21 +46,34 @@ guilty_ones :: [[Int]] -> Int -> [[Int]]
 guilty_ones list limit = unique [ x | x <- list, y <- list, limit == dotproduct x y]
 
 rollDice :: Int -> IO Int
-rollDice limit = getStdRandom (randomR (0,limit))
+rollDice limit = getStdRandom (randomR (0,limit)) 
 
--- Improve this ugly function. Seriously, it´s awfull, shame on you.
-try_changes :: [[Int]] -> [[Int]] ->[[Int]] -> Int -> [[Int]]
-try_changes [] curr_sol_list _ _ = curr_sol_list
-try_changes changes curr_sol_list total_list curr_sol_lambda  =
-	let
-		(x:xs) = changes
-		neighbors = filter (>x) (remove_lists total_list curr_sol_list)
-		alternative = ( if neighbors /= [] then head(neighbors) else [-1])
-		alt_ans = (if alternative /= [-1] then filter_vector alternative (remove_list curr_sol_list x) else -1)
-		new_sol = (if (( alt_ans <0) || ( alt_ans >curr_sol_lambda)) then curr_sol_lambda else alt_ans)
-		new_sol_list = (if new_sol==alt_ans then sort(alternative:(remove_list curr_sol_list x)) else curr_sol_list)
-	in
-		try_changes xs new_sol_list total_list new_sol 
+choseRandom limit = do
+	num <- rollDice limit
+	return num
+
+-- splits :: Int -> [[Int]] -> [[Int]]
+--splits 0 _ = return []
+--splits len list =
+--	do 
+--		num <- choseRandom(length(list))
+--		let rand = list !! num
+--			new_list = remove_list list rand
+--		in (rand:(splits (len-1) new_list))
+
+-- INCOMPLETE! We need the random package 
+first_solution :: Int -> Int -> Int -> [[Int]]
+first_solution rows columns r =  shuffle (perm [1..columns] r) [1..6]
+
+-- Alternative to random. Fix it if possible..
+--shuffle_m :: [[Int]] -> Int -> [[Int]]
+--shuffle_m list partitions = 
+--		let positions = (takeWhile (<length(list)) [n*partitions| n<-[0..]])
+--		in [ list !! n | n <- positions]
+
+shuffle :: [[Int]] -> [Int] -> [[Int]]
+shuffle list partitions = 
+		 [ list !! n | n <- partitions]
 
 
 --main :: Int -> Int -> Int -> Int
@@ -106,10 +88,24 @@ try_changes changes curr_sol_list total_list curr_sol_lambda  =
 --	let changes = unique (guilty_ones curr_sol_list curr_sol_lambda )
 --	try_changes
 
+-- Improve this ugly function. Seriously, it´s awfull, shame on you.
+
+
+try_changes :: [[Int]] -> [[Int]] ->[[Int]] -> Int -> [[Int]]
+try_changes [] curr_sol_list _ _ = curr_sol_list
+try_changes changes curr_sol_list total_list curr_sol_lambda  =
+	let
+		(x:xs) = changes
+		neighbors = filter (>x) (delete_lists curr_sol_list total_list)
+		alternative = ( if neighbors /= [] then head(neighbors) else [-1])
+		alt_ans = (if alternative /= [-1] then filter_vector alternative (delete x curr_sol_list) else -1)
+		new_sol = (if (( alt_ans <0) || ( alt_ans >curr_sol_lambda)) then curr_sol_lambda else alt_ans)
+		new_sol_list = (if new_sol==alt_ans then (alternative:(delete x curr_sol_list)) else curr_sol_list)
+	in
+		try_changes xs new_sol_list total_list new_sol 
+
+
+
 --main ::
 --main rows columns r =
 --	big_list = perm[1..columns] 
-
-
-
-
