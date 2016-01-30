@@ -63,17 +63,17 @@ choseRandom limit = do
 
 -- INCOMPLETE! We need the random package 
 first_solution :: Int -> Int -> Int -> [[Int]]
-first_solution rows columns r =  shuffle (perm [1..columns] r) [1..6]
+first_solution rows columns r =  shuffle (perm [1..columns] r) (length(perm [1..columns] r) `div` rows)
 
 -- Alternative to random. Fix it if possible..
---shuffle_m :: [[Int]] -> Int -> [[Int]]
---shuffle_m list partitions = 
---		let positions = (takeWhile (<length(list)) [n*partitions| n<-[0..]])
---		in [ list !! n | n <- positions]
-
-shuffle :: [[Int]] -> [Int] -> [[Int]]
+shuffle :: [[Int]] -> Int -> [[Int]]
 shuffle list partitions = 
-		 [ list !! n | n <- partitions]
+		let positions = (takeWhile (<length(list)) [n*partitions| n<-[0..]])
+		in [ list !! n | n <- positions]
+
+-- shuffle :: [[Int]] -> [Int] -> [[Int]]
+-- shuffle list partitions = 
+--		 [ list !! n | n <- partitions]
 
 
 --main :: Int -> Int -> Int -> Int
