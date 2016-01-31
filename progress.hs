@@ -6,9 +6,6 @@ import System.Random
 -- dotproduct [1,2,3] [2,3,4] = len([2,3]) = 2.
 -- This is the same as dotproduct [1,1,1,0] [0,1,1,1]. 
 
---dotprod :: [Int] -> [Int] -> Int
---dotprod a b  = sum $ (zipWith (*) a b)
-
 -- Returns the max dotproduct between a list and a list of lists
 filter_vector :: [Int] -> [[Int]] -> Int
 filter_vector v1 vectorlist  =  maximum [ dotproduct x v1 | x <- vectorlist]
@@ -33,7 +30,6 @@ unique (x : xs) = x : unique (filter (x /=) xs)
 dotproduct :: [Int] -> [Int] -> Int
 dotproduct list1 list2 = length (list1 `intersect` list2)
 
-
 delete_lists :: [[Int]] -> [[Int]] -> [[Int]]
 delete_lists [] _ = []
 delete_lists (x:xs) big_list = delete_lists xs (delete x big_list)
@@ -45,51 +41,14 @@ get_first_answer rows columns r = filter_dotprod (first_solution rows columns r)
 guilty_ones :: [[Int]] -> Int -> [[Int]]
 guilty_ones list limit = unique [ x | x <- list, y <- list, limit == dotproduct x y]
 
-rollDice :: Int -> IO Int
-rollDice limit = getStdRandom (randomR (0,limit)) 
-
-choseRandom limit = do
-	num <- rollDice limit
-	return num
-
--- splits :: Int -> [[Int]] -> [[Int]]
---splits 0 _ = return []
---splits len list =
---	do 
---		num <- choseRandom(length(list))
---		let rand = list !! num
---			new_list = remove_list list rand
---		in (rand:(splits (len-1) new_list))
-
--- INCOMPLETE! We need the random package 
 first_solution :: Int -> Int -> Int -> [[Int]]
 first_solution rows columns r =  shuffle (perm [1..columns] r) (length(perm [1..columns] r) `div` rows)
 
--- Alternative to random. Fix it if possible..
+
 shuffle :: [[Int]] -> Int -> [[Int]]
 shuffle list partitions = 
 		let positions = (takeWhile (<length(list)) [n*partitions| n<-[0..]])
 		in [ list !! n | n <- positions]
-
--- shuffle :: [[Int]] -> [Int] -> [[Int]]
--- shuffle list partitions = 
---		 [ list !! n | n <- partitions]
-
-
---main :: Int -> Int -> Int -> Int
---main rows columns r  = begin complete_list curr_sol_list tabu_list curr_sol_lambda
---	where complete_list = perm [1..columns] r
---		curr_sol_list = take rows complete_list
---		tabu_list = [[]]
---		curr_sol_lambda = filter_dotprod (curr_sol_list)
-
---begin :: [[Int]] -> [[Int]] -> [[Int]] -> Int
---begin total_list curr_sol_list tabu_list curr_sol_lambda = 
---	let changes = unique (guilty_ones curr_sol_list curr_sol_lambda )
---	try_changes
-
--- Improve this ugly function. Seriously, it´s awfull, shame on you.
-
 
 try_changes :: [[Int]] -> [[Int]] ->[[Int]] -> Int -> [[Int]]
 try_changes [] curr_sol_list _ _ = curr_sol_list
@@ -104,8 +63,17 @@ try_changes changes curr_sol_list total_list curr_sol_lambda  =
 	in
 		try_changes xs new_sol_list total_list new_sol 
 
+----- % Incomplete Stuff % --------
 
+--main :: Int -> Int -> Int -> Int
+--main rows columns r  = begin complete_list curr_sol_list tabu_list curr_sol_lambda
+--	where complete_list = perm [1..columns] r
+--		curr_sol_list = take rows complete_list
+--		tabu_list = [[]]
+--		curr_sol_lambda = filter_dotprod (curr_sol_list)
 
---main ::
---main rows columns r =
---	big_list = perm[1..columns] 
+--begin :: [[Int]] -> [[Int]] -> [[Int]] -> Int
+--begin total_list curr_sol_list tabu_list curr_sol_lambda = 
+--	let changes = unique (guilty_ones curr_sol_list curr_sol_lambda )
+--	try_changes
+
