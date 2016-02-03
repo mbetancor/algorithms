@@ -48,28 +48,45 @@ randlists rows columns r = do
     rest <- (randlists (rows-1) columns r)
     return $ list:rest
 
-localID :: Int -> Int -> Int -> IO Int
+localID :: Int -> Int -> Int -> IO [[Int]]
 localID rows columns r = do 
     first_solution <- (randlists rows columns r)
-    return $ filter_dotprod first_solution
+    return $ [filter_dotprod first_solution]:first_solution
 
--- TODO: Finish this 
-neighbors :: [Int] -> [[Int]] -> [[Int]] -> Int -> Int -> [Int]
-neighbors (x:xs) list tabu limit curr_sol =
-    let intabu  = unique $ concat [ delete_lists xs y | y <-tabu, dotproduct xs y == length(xs) ]
-        options = delete_lists ((x:xs) ++ intabu) [1..limit]
-    in minimum [ ((filter_vector (y:xs) list):(y:xs)) | y <- options, (filter_vector (y:xs) list) <= curr_sol]
+neighbors :: [[Int]] -> [[Int]] -> [[Int]] -> Int -> Int -> [[Int]]
+neighbors [] list tabu _ curr_sol = []
+neighbors (element:rest) list tabu limit curr_sol =
+    let (x:xs) = element
+        list2 = delete element list 
+        options = delete_lists (x:xs) [1..limit]
+        ans = searchBest element list2 options tabu [] curr_sol
+    in (ans: neighbors rest (ans:list2) (ans:tabu) limit curr_sol)
+
+
+
+--searchRandom :: [Int] -> [Int] -> IO [Int]
+--searchRandom  element options = do
+--    num <- newStdGen
+--    let (x,_) = randomR(1,length(options)) num
+--        (y,_) = randomR(1,length(element)) num
+
+--    return $ list !! (x `mod` length(list))
+
+searchBest :: [Int] -> [[Int]] -> [Int] -> [[Int]] -> [Int] -> Int -> [Int]
+searchBest [] _ _ _ new_element _ = new_element
+searchBest (x:rest) list options tabu new_element curr_sol = 
+    let xs = rest ++ new_element
+        l = [(y:xs) | y <- options, (filter_vector (y:xs) list) < curr_sol, (filter_vector (y:xs) tabu) < length(x:rest)]
+    in case l of 
+         [] -> searchBest rest list options tabu (x:new_element) curr_sol
+         _ -> head(l) 
+
+
 
 --ssl :: [[Int]] -> [[Int]] -> Int -> [[Int]]
 --ssl (x:xs) tabu curr_sol =  
 
 
-
-
-
-
-
-
-
-
-
+-- TODO
+-- 2 algorithms: we stop when we cant find any better neighbors
+-- random neighbors, even they are worse
