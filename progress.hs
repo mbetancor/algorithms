@@ -27,7 +27,7 @@ delete_lists (x:xs) big_list = delete_lists xs $ delete x big_list
 worst_ones :: [[Int]] -> Int -> [[Int]]
 worst_ones [x] _ = []
 worst_ones (x:xs) limit = 
-    if ( (filter_vector x xs) == limit) then (x:(worst_ones xs limit))
+    if ( (filter_vector x xs) >= limit) then (x:(worst_ones xs limit))
         else (worst_ones xs limit)
 
 exclusiveDice :: Int -> [Int] -> IO Int
@@ -56,6 +56,13 @@ localID rows columns r = do
     first_solution <- (randlists rows columns r)
     return $ mainf first_solution [[]] rows columns r (filter_dotprod first_solution)
     --return $ [filter_dotprod first_solution]:first_solution
+
+iterate_localID:: Int -> Int -> Int -> Int -> IO [Int]
+iterate_localID 0 _ _ _ = return []
+iterate_localID counter rows columns r = do
+    ans <- localID rows columns r
+    next <- iterate_localID (counter-1) rows columns r
+    return (ans:next) 
 
 mainf :: [[Int]] -> [[Int]] -> Int -> Int -> Int -> Int -> Int
 mainf big_list tabu rows columns r curr_sol =
@@ -111,9 +118,4 @@ closest (num:xs) list tabu =
         maxim = if (lmax == []) then [] else [head(lmax)]
     in minim++maxim
 
--- TODO:
--- Another idea: Maybe the professor wants the program to output the matrix, and
--- then we can use the bound to know when to stop
--- in that case, whenever we are stuck in local minima, we do a fresh restart until
--- we reach the bound.
 
