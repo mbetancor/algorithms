@@ -54,8 +54,14 @@ randlists rows columns r = do
 localID :: Int -> Int -> Int -> IO Int
 localID rows columns r = do 
     first_solution <- (randlists rows columns r)
-    return $ mainf first_solution [[]] rows columns r (filter_dotprod first_solution)
+    return $ mainf first_solution first_solution rows columns r (filter_dotprod first_solution)
     --return $ [filter_dotprod first_solution]:first_solution
+
+local :: Int -> Int -> Int -> IO Int
+local rows columns r = do
+    ran <- randomRIO (1, 20)
+    ans <- iterate_localID ran rows columns r
+    return (minimum ans)
 
 iterate_localID:: Int -> Int -> Int -> Int -> IO [Int]
 iterate_localID 0 _ _ _ = return []
@@ -74,8 +80,9 @@ mainf big_list tabu rows columns r curr_sol =
         mainf new_list (tabu++changes) rows columns r (filter_dotprod new_list)
         
 
+
 neighbors :: [[Int]] -> [[Int]] -> [[Int]] -> Int -> Int -> [[Int]]
-neighbors [] list tabu _ curr_sol = []
+neighbors [] _ _ _ _ = []
 neighbors (element:rest) list tabu limit curr_sol =
     let (x:xs) = element
         list2 = delete element list 
@@ -100,6 +107,16 @@ neighbors (element:rest) list tabu limit curr_sol =
 --         [] -> searchBest rest list options tabu (x:new_element) curr_sol
 --         _ -> head(l) 
 
+-- searchRandom :: [Int] -> [[Int]] -> [Int] -> [[Int]] -> Int -> IO [Int]
+-- searchRandom element big_list options tabu curr_sol = do
+    
+shuffle :: Int -> Int -> Int -> [[Int]] -> IO [[Int]]
+shuffle 0 _ _ _  = return []
+shuffle rows columns r tabu_list = do
+    ran <- randlists 1 columns r
+    if ((filter_dotprod ran tabu_list) == r) then return (shuffle rows columns r tabu_list)
+	else return (ran:(shuffle (rows-1) columns r (ran:tabu_list)))
+
 searchBest :: [Int] -> [[Int]] -> [Int] -> [[Int]] -> [Int] -> Int -> [Int]
 searchBest [] _ _ _ new_element _ = new_element
 searchBest (x:rest) list options tabu new_element curr_sol = 
@@ -110,6 +127,7 @@ searchBest (x:rest) list options tabu new_element curr_sol =
          [] -> searchBest rest list options tabu (x:new_element) curr_sol
          _ -> (head(l):xs)
 
+
 closest ::  [Int] -> [Int] -> [[Int]] ->[Int]
 closest (num:xs) list tabu = 
     let lmin = [x | x <- (reverse([1..(num-1)] `intersect` list)), (filter_vector (x:xs) tabu) < (length(num:xs)) ]
@@ -117,5 +135,3 @@ closest (num:xs) list tabu =
         minim = if (lmin == []) then [] else [head(lmin)]
         maxim = if (lmax == []) then [] else [head(lmax)]
     in minim++maxim
-
-
