@@ -11,11 +11,6 @@ filter_dotprod :: [[Int]] -> Int
 filter_dotprod [x] = 0
 filter_dotprod (x:xs) = maximum $ filter_vector x xs:[filter_dotprod xs]
 
--- Returns the same function without duplicates
-unique :: Eq a => [a] -> [a]
-unique []       = []
-unique (x : xs) = x : unique (filter (x /=) xs)
-
 -- This is some kind of dotproduct
 dotproduct :: [Int] -> [Int] -> Int
 dotproduct list1 list2 = length $ list1 `intersect` list2
@@ -54,84 +49,52 @@ randlists rows columns r = do
 localID :: Int -> Int -> Int -> IO Int
 localID rows columns r = do 
     first_solution <- (randlists rows columns r)
-    return $ mainf first_solution first_solution rows columns r (filter_dotprod first_solution)
-    --return $ [filter_dotprod first_solution]:first_solution
+    ans <- mainf first_solution [[]] rows columns r (filter_dotprod first_solution) (filter_dotprod first_solution) 30
+    return $ ans
 
-local :: Int -> Int -> Int -> IO Int
-local rows columns r = do
-    ran <- randomRIO (1, 20)
-    ans <- iterate_localID ran rows columns r
-    return (minimum ans)
-
-iterate_localID:: Int -> Int -> Int -> Int -> IO [Int]
-iterate_localID 0 _ _ _ = return []
-iterate_localID counter rows columns r = do
-    ans <- localID rows columns r
-    next <- iterate_localID (counter-1) rows columns r
-    return (ans:next) 
-
-mainf :: [[Int]] -> [[Int]] -> Int -> Int -> Int -> Int -> Int
-mainf big_list tabu rows columns r curr_sol =
+mainf :: [[Int]] -> [[Int]] -> Int -> Int -> Int -> Int -> Int -> Int -> IO Int 
+mainf _ _ _ _ _ _ best_sol 0 = return best_sol
+mainf big_list tabu rows columns r curr_sol best_sol counter = 
     let changes = worst_ones big_list curr_sol
         new_elements = neighbors changes big_list tabu columns curr_sol
         new_list = (delete_lists changes big_list) ++ new_elements
-        restart = localID rows columns r
-    in if (curr_sol== (filter_dotprod new_list)) then curr_sol else 
-        mainf new_list (tabu++changes) rows columns r (filter_dotprod new_list)
-        
-
+        new_best = minimum [(filter_dotprod new_list),best_sol]
+        in do 
+            reroll <- shuffle new_list columns curr_sol
+            shuffle_ans <- mainf reroll (tabu++new_elements) rows columns r (filter_dotprod reroll) new_best (counter-1)
+            return shuffle_ans
+ 
+shuffle :: [[Int]] -> Int -> Int -> IO [[Int]]
+shuffle big_list columns worst_sol = 
+    let changes = (worst_ones big_list worst_sol)
+        non_modified = delete_lists changes big_list
+        in do  
+            modifications <- randlists (length(changes)) columns (length(head(big_list)))
+            return (modifications++non_modified)
 
 neighbors :: [[Int]] -> [[Int]] -> [[Int]] -> Int -> Int -> [[Int]]
-neighbors [] _ _ _ _ = []
+neighbors [] list tabu _ curr_sol = []
 neighbors (element:rest) list tabu limit curr_sol =
     let (x:xs) = element
         list2 = delete element list 
         options = delete_lists (x:xs) [1..limit] 
-        ans = searchBest element list2 options tabu [] curr_sol
+        ans = searchBest element list2 options limit tabu [] curr_sol
     in (ans: neighbors rest (ans:list2) (ans:tabu) limit curr_sol)
 
-
---searchRandom :: [Int] -> [Int] -> IO [Int]
---searchRandom  element options = do
---    num <- newStdGen
---    let (x,_) = randomR(1,length(options)) num
---        (y,_) = randomR(1,length(element)) num
---    return $ list !! (x `mod` length(list))
-
---searchBest :: [Int] -> [[Int]] -> [Int] -> [[Int]] -> [Int] -> Int -> [Int]
---searchBest [] _ _ _ new_element _ = new_element
---searchBest (x:rest) list options tabu new_element curr_sol = 
---    let xs = rest ++ new_element
---        l = [(y:xs) | y <- options, (filter_vector (y:xs) list) < curr_sol, (filter_vector (y:xs) tabu) < length(x:rest)]
---    in case l of 
---         [] -> searchBest rest list options tabu (x:new_element) curr_sol
---         _ -> head(l) 
-
--- searchRandom :: [Int] -> [[Int]] -> [Int] -> [[Int]] -> Int -> IO [Int]
--- searchRandom element big_list options tabu curr_sol = do
-    
-shuffle :: Int -> Int -> Int -> [[Int]] -> IO [[Int]]
-shuffle 0 _ _ _  = return []
-shuffle rows columns r tabu_list = do
-    ran <- randlists 1 columns r
-    if ((filter_dotprod ran tabu_list) == r) then return (shuffle rows columns r tabu_list)
-	else return (ran:(shuffle (rows-1) columns r (ran:tabu_list)))
-
-searchBest :: [Int] -> [[Int]] -> [Int] -> [[Int]] -> [Int] -> Int -> [Int]
-searchBest [] _ _ _ new_element _ = new_element
-searchBest (x:rest) list options tabu new_element curr_sol = 
+searchBest :: [Int] -> [[Int]] -> [Int] -> Int -> [[Int]] -> [Int] -> Int -> [Int]
+searchBest [] _ _ _ _ new_element _ = new_element
+searchBest (x:rest) list options limit tabu new_element curr_sol = 
     let xs = rest ++ new_element
-        new_options = closest (x:rest) options tabu
+        new_options = closest (x:rest) options tabu limit
         l = [ y | y <- new_options, (filter_vector (y:xs) list) < curr_sol]
     in case l of 
-         [] -> searchBest rest list options tabu (x:new_element) curr_sol
+         [] -> searchBest rest list options limit tabu (x:new_element) curr_sol
          _ -> (head(l):xs)
 
-
-closest ::  [Int] -> [Int] -> [[Int]] ->[Int]
-closest (num:xs) list tabu = 
+closest ::  [Int] -> [Int] -> [[Int]] -> Int ->[Int]
+closest (num:xs) list tabu limit =    
     let lmin = [x | x <- (reverse([1..(num-1)] `intersect` list)), (filter_vector (x:xs) tabu) < (length(num:xs)) ]
-        lmax = [x | x <- ([(num+1)..500] `intersect` list), (filter_vector (x:xs) tabu) < (length(num:xs)) ] 
-        minim = if (lmin == []) then [] else [head(lmin)]
-        maxim = if (lmax == []) then [] else [head(lmax)]
-    in minim++maxim
+        lmax = [x | x <- ([(num+1)..limit] `intersect` list), (filter_vector (x:xs) tabu) < (length(num:xs)) ] 
+        minim = if (lmin == []) then [] else (take 2(lmin))
+        maxim = if (lmax == []) then [] else (take 2(lmax))
+    in  (minim++maxim)
