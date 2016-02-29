@@ -1,104 +1,120 @@
 module Cruise where
 import Data.List 
 
+main :: IO()
+main = do
+  putStrLn "Please enter the following parameters: \n number of diners, "
+  diners <- getLine
+  putStrLn "number of chairs.. \n"
+  chairs <- getLine
+  putStrLn " we are almost done! Now please enter the number of evenings "
+  evenings <- getLine
+  putStrLn "Your program is ready!"
+  writeFile "cruise_output.txt" "aaa"
+  --putStrLn "c Here is a comment"
+  --putStrLn "p cnf" ++ (length (set_variables diners evenings)) ++ (length (ans diners chairs evenings))
 
--- Returns the max dotproduct between a list and a list of lists
-filter_vector :: [Int] -> [[Int]] -> Int
-filter_vector v1 vectorlist  =  maximum [ dotproduct x v1 | x <- vectorlist]
 
--- Returns the max dotprod between lists, using filter_vector
-filter_dotprod :: [[Int]] -> Int
-filter_dotprod [x] = 0
-filter_dotprod (x:xs) = maximum $ filter_vector x xs:[filter_dotprod xs]
+--to_cnf_text :: Int -> Int -> Int -> Int
+--to_cnf_text diners chairs evenings = 
+--  putStrLn "c Here is a comment "
+--  putStrLn "p cnf " ++ (length (set_variables diners evenings)) ++ (length (ans diners chairs evenings))
 
--- This is some kind of dotproduct
-dotproduct :: [Int] -> [Int] -> Int
-dotproduct list1 list2 = length $ list1 `intersect` list2
+to_cnf_text :: Int -> Int -> Int -> String
+to_cnf_text diners chairs evenings =
+  let anss = (ans diners chairs evenings) 
+      vars = length (set_variables diners evenings)
+    in  ("p cnf " ++ show vars ++ " " ++ show (length anss) ++
+      "\n" ) --TODO
+    
 
--- Returns the same function without duplicates
-unique :: (Eq a) => [a] -> [a] 
-unique []       = []
-unique (x : xs) = x : unique (filter (x /=) xs)
+ans :: Int -> Int -> Int -> [[Int]]
+ans diners chairs evenings =
+  let tables = diners `div` chairs 
+      tabu_combs = oh_no_please diners
+      bits = (ceiling (logBase (fromIntegral 2) (fromIntegral diners)))
+      list = set_variables diners evenings
+      big_list = structure_4list list bits (bits*chairs) tables
+      oh_no_cnf = oh_no_please_cnf (concat(concat big_list)) diners -- ADD
+      all_combs = delete_many (oh_no_please diners) (mapM (const [1,-1]) [1..bits]) 
+      cnf_diff = all_diff_cnf big_list all_combs -- ADD
+      cnf_intersect = not_two_in_common big_list all_combs -- ADD
+    in (oh_no_cnf ++ cnf_diff ++ cnf_intersect) 
 
--- Simple Permutation
-perm :: [Int] -> [[Int]]
-perm []  = [[]]
-perm xs = unique [(x:ys) | x <- xs, ys <- perm (delete x xs)]
 
-slice :: [Int] -> Int -> [[Int]]
-slice [] _ = []
-slice list index = (take index list):(slice (drop index list) index)
+not_two_in_common :: [[[[ Int ]]]] -> [[Int]] -> [[Int]]
+not_two_in_common [] _ = []
+not_two_in_common (x:xs) combinations = 
+  let xx2 = concat [ subs 2 xx | xx <- x]
+      c_xs = concat xs
+      xxs2 = concat [ subs 2 xxs | xxs <- c_xs]
+      in (concat [ mix_2x2 (xx++xxs) combinations |  xx <- xx2, xxs <- xxs2 ] ++
+      (not_two_in_common xs combinations))
 
-del :: [Int] ->[[Int]]
-del list = [ delete x list |  x <- list] -- map delete list list
+set_variables :: Int -> Int -> [Int]
+set_variables diners evenings = 
+  let total = (ceiling (logBase (fromIntegral 2) (fromIntegral diners) )) * diners * evenings
+    in [1..total] 
 
-map_del :: [[Int]] -> Int -> [[Int]]
-map_del list 0 = list
-map_del list counter = map_del (concat (map del list)) (counter-1) 
+subs :: Int -> [[Int]] -> [[[Int]]]
+subs x = filter ((== x) . length) . subsequences
 
-crazy_mix :: Int -> Int -> [[Int]]
-crazy_mix diners chairs = let 
-  list = slice [1..diners] chairs
-  exceed = ((diners `div` chairs) - chairs )
-      in sort $ unique $ map_del (search [[]] list) exceed
+structure_4list :: [Int]  -> Int -> Int -> Int -> [[[[Int]]]]
+structure_4list list diners tables evenings = 
+  convert_to4 (map (slice diners) (slice tables list)) evenings
 
-search :: [[Int]] -> [[Int]] -> [[Int]]
-search list []  = list
-search list (x:xs)  =
-  let new_list = [ l++[rest] | l <- list, rest <- x]
-       in (search new_list xs) 
+oh_no_please_cnf :: [[Int]] -> Int -> [[Int]]
+oh_no_please_cnf [] _ = []
+oh_no_please_cnf (x:xs) diners = 
+  [ zipWith(*) x y | y <- (oh_no_please diners)] ++ (oh_no_please_cnf xs diners)
 
-nonsat :: [Int] -> [[Int]]
-nonsat [] = []
-nonsat (x:xs) =
-  let comb = [ [x,rest]| rest <- xs]
-    in (comb ++ (nonsat xs) )
+all_diff_cnf :: [[[[ Int ]]]] -> [[Int]] -> [[Int]]
+all_diff_cnf [] _ = []
+all_diff_cnf (x:xs) combs =
+  (all_different (concat x) combs)  ++ all_diff_cnf xs combs
 
---delete_not_containing :: [Int] -> [Int] -> [Int]
---delete_not_containing ref_list list = 
---  if ( (length(ref_list `intersect` list)) == (length(list)) ) then list else []
+all_different :: [[Int]] -> [[Int]] -> [[Int]]
+all_different [] _ = []
+all_different (x:rest) combinations =
+ ( [  zipWith (*) (comb++comb) (x++xs) | xs<-rest, comb <- combinations])++
+ all_different rest combinations
 
+oh_no_please :: Int -> [[Int]]
+oh_no_please diners = 
+  let limit = if (diners<5) then 3 else if (diners<9) then 7 else if (diners<17) then 15 else if (diners<33) then 31 else if (diners<65) then 63 else if (diners < 129) then 127 else 255
+    in (map convert' [diners..limit] )
+
+convert' :: Int -> [Int]
+convert' num = reverse (convert num)
+
+convert :: Int -> [Int]
+convert 1 = [-1]
+convert 0 = [1]
+convert num = let
+  d = num `div` 2 
+  r = num `rem` 2
+  ans = if (r==0) then 1 else -1
+    in [ans] ++ (convert d) 
+
+slice :: Int -> [Int] -> [[Int]]
+slice _ [] = []
+slice index list = (take index list):(slice index (drop index list))
+
+convert_to4 :: [[[Int]]] -> Int -> [[[[Int]]]]
+convert_to4 [] _ = []
+convert_to4 list index =  (take index list):(convert_to4 (drop index list) index)
+
+-- If two of them are equal, the other two must be different
+mix_2x2 :: [[Int]] -> [[Int]] -> [[Int]]
+mix_2x2 _ [] = []
+mix_2x2 [x1,x2,x3,x4] (possibility1:rest_of_possibilities) =
+  [ (zipWith (*)  (possibility1 ++ possibility1) (x1++x3)) ++
+    (zipWith (*)  (xs ++ xs) (x2++x4) )| xs <- rest_of_possibilities ]  ++
+    [ (zipWith (*)  (possibility1 ++ possibility1) (x1++x4)) ++
+    (zipWith (*)  (xs ++ xs) (x2++x3) )| xs <- rest_of_possibilities ] ++  
+    mix_2x2 [x1,x2,x3,x4] rest_of_possibilities
+   
 delete_many :: Eq a => [a] -> [a] -> [a]
 delete_many [] list = list
 delete_many (x:xs) list = 
   delete_many xs (delete x list)
-
---deep :: Int -> Int -> Int -> Bool
---deep diners chairs evenings = 
---	let tables = diners `div` chairs
---		list = (slice [1..diners] chairs)
---		nonsat_list = concat $ map nonsat list
---		in cnf diners chairs evenings nonsat_list [1]
-
-
-
-not_containing :: [Int] -> [[Int]] -> Bool
-not_containing _ [[]] = True
-not_containing _ [] = True
-not_containing list (x:xs) = if ( (dotproduct list x) == length(x)) then False else (not_containing list xs)
-
-
-find_available_table :: Int -> Int -> [[Int]] -> [Int] -> [[Int]] ->[Int]
-find_available_table _ 0 _ temp_diners _ = temp_diners
-find_available_table diners chairs nonsat_biglist temp_diners temp_nonsat = 
-	let (_:rest) = temp_diners
-	    aux_list = delete_many temp_diners [1..diners] 
-	    a = [  x | x <- aux_list, (filter_vector (x:temp_diners) nonsat_biglist) < 2,
-	       (not_containing (x:temp_diners) temp_nonsat == True) ]
-	  in if (a /= []) then (find_available_table diners (chairs-1) nonsat_biglist ((head(a)):temp_diners) temp_nonsat)
-	  	else (if (temp_diners == []) then [] 
-	  	else (find_available_table diners (chairs+1) nonsat_biglist rest (temp_diners:temp_nonsat) ) )
-
-
---set_tables :: [Int] -> Int -> [[Int]] -> [[Int]] -> [[Int]] -> [[Int]]
---set_tables (first_diner:rest_of_diners) chairs  
-
---cnf :: Int -> Int -> Int -> [[Int]] -> [Int] -> Bool
---cnf diners chairs 1 _ list = (length(list)==(diners `div` chairs)) 
---cnf diners chairs evenings nonsat_list list = 
-
-
-
-
-
-
