@@ -1,32 +1,23 @@
 module Cruise where
 import Data.List 
 
-main :: IO()
-main = do
-  putStrLn "Please enter the following parameters: \n number of diners, "
-  diners <- getLine
-  putStrLn "number of chairs.. \n"
-  chairs <- getLine
-  putStrLn " we are almost done! Now please enter the number of evenings "
-  evenings <- getLine
-  putStrLn "Your program is ready!"
-  writeFile "cruise_output.txt" "aaa"
-  --putStrLn "c Here is a comment"
-  --putStrLn "p cnf" ++ (length (set_variables diners evenings)) ++ (length (ans diners chairs evenings))
-
-
---to_cnf_text :: Int -> Int -> Int -> Int
---to_cnf_text diners chairs evenings = 
---  putStrLn "c Here is a comment "
---  putStrLn "p cnf " ++ (length (set_variables diners evenings)) ++ (length (ans diners chairs evenings))
+cruise :: Int -> Int -> Int -> IO()
+cruise diners chairs evenings = do
+  putStrLn "This might take a while!"
+  writeFile "cruise_output.txt" (to_cnf_text diners chairs evenings)
+  putStrLn "Your program is ready :)"
 
 to_cnf_text :: Int -> Int -> Int -> String
 to_cnf_text diners chairs evenings =
   let anss = (ans diners chairs evenings) 
       vars = length (set_variables diners evenings)
     in  ("p cnf " ++ show vars ++ " " ++ show (length anss) ++
-      "\n" ) --TODO
-    
+      "\n" ) ++ (display_args anss)
+
+display_args :: [[Int]] -> String
+display_args [] = " "
+display_args (x:xs) =
+  ((concat [ show p ++ " " | p <- x]) ++ "0 " ++ "\n") ++ (display_args xs) 
 
 ans :: Int -> Int -> Int -> [[Int]]
 ans diners chairs evenings =
@@ -81,7 +72,7 @@ all_different (x:rest) combinations =
 
 oh_no_please :: Int -> [[Int]]
 oh_no_please diners = 
-  let limit = if (diners<5) then 3 else if (diners<9) then 7 else if (diners<17) then 15 else if (diners<33) then 31 else if (diners<65) then 63 else if (diners < 129) then 127 else 255
+  let limit = if (diners <3) then 2 else if (diners<5) then 3 else if (diners<9) then 7 else if (diners<17) then 15 else if (diners<33) then 31 else if (diners<65) then 63 else if (diners < 129) then 127 else 255
     in (map convert' [diners..limit] )
 
 convert' :: Int -> [Int]
@@ -112,6 +103,10 @@ mix_2x2 [x1,x2,x3,x4] (possibility1:rest_of_possibilities) =
     (zipWith (*)  (xs ++ xs) (x2++x4) )| xs <- rest_of_possibilities ]  ++
     [ (zipWith (*)  (possibility1 ++ possibility1) (x1++x4)) ++
     (zipWith (*)  (xs ++ xs) (x2++x3) )| xs <- rest_of_possibilities ] ++  
+      [ (zipWith (*)  (possibility1 ++ possibility1) (x2++x3)) ++
+    (zipWith (*)  (xs ++ xs) (x1++x4) )| xs <- rest_of_possibilities ]  ++
+    [ (zipWith (*)  (possibility1 ++ possibility1) (x2++x4)) ++
+    (zipWith (*)  (xs ++ xs) (x1++x3) )| xs <- rest_of_possibilities ] ++  
     mix_2x2 [x1,x2,x3,x4] rest_of_possibilities
    
 delete_many :: Eq a => [a] -> [a] -> [a]
