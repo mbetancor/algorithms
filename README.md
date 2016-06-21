@@ -1,3 +1,2 @@
-# algorithms
-secret work 
-feel free to comment or change the code
+# Algorithms
+Solving Golfers problem with SAT
